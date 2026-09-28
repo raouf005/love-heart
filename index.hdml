@@ -1,0 +1,136 @@
+!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Love Heart Animation</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+  }
+
+  #stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    perspective: 1400px;
+  }
+
+  #ui {
+    position: relative;
+    width: 0;
+    height: 0;
+    transform-style: preserve-3d;
+    animation: spin 10s linear infinite;
+  }
+
+  #ui .love_word {
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #ea80b0;
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 1.4rem;
+    text-shadow: 0 0 10px #fff;
+    letter-spacing: 2px;
+    white-space: nowrap;
+    transform-origin: 0 50%;
+  }
+
+  @keyframes spin {
+    from { transform: rotateY(0deg); }
+    to   { transform: rotateY(360deg); }
+  }
+</style>
+</head>
+<body>
+<div id="stage"><div id="ui"></div></div>
+
+<script>
+  const ui = document.getElementById("ui");
+  const TEXT = "I love you";
+  const LAYERS = 6;
+
+  // Scale the heart to the screen
+  const W = Math.min(window.innerWidth, window.innerHeight * 0.9);
+  const S = (W * 0.8) / 34;
+
+  // Font size scales with screen so words fit nicely
+  const fontSize = Math.max(8, Math.min(20, W / 34));
+  document.documentElement.style.setProperty("--fs", fontSize + "px");
+
+  // Measure one word's width
+  const probe = document.createElement("span");
+  probe.className = "love_word";
+  probe.style.fontSize = fontSize + "px";
+  probe.style.visibility = "hidden";
+  probe.textContent = TEXT;
+  ui.appendChild(probe);
+  const wordW = probe.getBoundingClientRect().width + fontSize * 0.6;
+  probe.remove();
+
+  function heart(t) {
+    return {
+      x: 16 * Math.pow(Math.sin(t), 3) * S,
+      y: -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) * S
+    };
+  }
+
+  // Sample the outline and measure its length
+  const N = 2000, pts = [0];
+  let prev = heart(0);
+  const path = [prev];
+  for (let i = 1; i <= N; i++) {
+    const p = heart((i / N) * Math.PI * 2);
+    pts.push(pts[i - 1] + Math.hypot(p.x - prev.x, p.y - prev.y));
+    path.push(p);
+    prev = p;
+  }
+  const total = pts[N];
+
+  function at(s) {
+    s = ((s % total) + total) % total;
+    let i = 0;
+    while (i < N && pts[i + 1] < s) i++;
+    const f = (s - pts[i]) / ((pts[i + 1] - pts[i]) || 1);
+    return {
+      x: path[i].x + (path[i + 1].x - path[i].x) * f,
+      y: path[i].y + (path[i + 1].y - path[i].y) * f
+    };
+  }
+
+  const count = Math.max(6, Math.floor(total / wordW));
+  const step = total / count;
+  const lineGap = fontSize * 1.05;
+
+  for (let l = 0; l < LAYERS; l++) {
+    const z = (l - (LAYERS - 1) / 2) * lineGap;
+    for (let k = 0; k < count; k++) {
+      const s = k * step;
+      const a = at(s), b = at(s + step * 0.9);
+      let angle = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+      let x = a.x, y = a.y;
+
+      // keep text readable: flip words that would be upside down
+      if (Math.abs(angle) > 90) {
+        angle += 180;
+        x = b.x; y = b.y;
+      }
+
+      const el = document.createElement("span");
+      el.className = "love_word";
+      el.style.fontSize = fontSize + "px";
+      el.textContent = TEXT;
+      el.style.transform =
+        `translate3d(${x}px, ${y}px, ${z}px) rotateZ(${angle}deg) translateY(-50%)`;
+      ui.appendChild(el);
+    }
+  }
+</script>
+</body>
+</html>
